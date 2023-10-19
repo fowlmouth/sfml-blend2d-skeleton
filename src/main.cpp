@@ -71,6 +71,13 @@ int Application::run()
         window.close();
         break;
 
+      case sf::Event::KeyPressed:
+        if(event.key.code == sf::Keyboard::Escape)
+        {
+          window.close();
+        }
+        break;
+
       case sf::Event::Resized:
         recreate_image();
         view.setSize(event.size.width, event.size.height);

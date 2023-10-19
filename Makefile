@@ -3,8 +3,8 @@ OBJ := $(SRC:.cpp=.o)
 
 BIN := game
 
-CXXFLAGS := $(shell pkg-config --cflags sfml-graphics) -Ientt/src -std=c++20
-LDFLAGS := $(shell pkg-config --libs sfml-graphics) -lbox2d -L"$(PWD)" -lblend2d
+CXXFLAGS := $(shell pkg-config --cflags sfml-graphics) -std=c++20
+LDFLAGS := $(shell pkg-config --libs sfml-graphics) -lblend2d
 
 ALL: $(BIN)
 .PHONY: clean debug release
