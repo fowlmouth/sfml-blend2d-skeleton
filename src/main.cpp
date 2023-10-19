@@ -3,24 +3,31 @@
 
 #include <iostream>
 
-int main()
+class Application
 {
-  const char* font_file_name = "OpenSans-Regular.ttf";
-  float screen_w = 800.f, screen_h = 600.f;
-
-  sf::RenderWindow window(sf::VideoMode(800, 600), "SFML works!");
-  window.setVerticalSyncEnabled(true);
-
-  sf::Image sf_image;
-  sf_image.create(800, 600, sf::Color::Black);
-
-  BLImage bl_image;
-  bl_image.createFromData(800, 600, BL_FORMAT_PRGB32, (void*)sf_image.getPixelsPtr(), 4*800);
-
-  BLContextCreateInfo ctx_info;
-  ctx_info.threadCount = 2;
-
+  sf::RenderWindow window;
+  sf::Image image;
+  sf::Texture texture;
   BLFontFace font_face;
+  BLContextCreateInfo bl_context_info;
+  bool texture_dirty;
+
+public:
+
+  struct InvalidFont
+  {
+  };
+
+  Application(unsigned int width, unsigned int height, const char* font_file_name);
+
+  int run();
+
+  void recreate_image();
+  void recreate_texture();
+};
+
+Application::Application(unsigned int width, unsigned int height, const char* font_file_name)
+{
   BLArray<uint8_t> data_buffer;
   if(BLFileSystem::readFile(font_file_name, data_buffer) == BL_SUCCESS)
   {
@@ -32,37 +39,26 @@ int main()
     else
     {
       std::cerr << "failed to load font file " << font_file_name << std::endl;
-      return 1;
+      throw InvalidFont{};
     }
   }
   else
   {
     std::cerr << "failed to open font file " << font_file_name << std::endl;
-    return 1;
+    throw InvalidFont{};
   }
 
-  {
-    BLContext ctx(bl_image, ctx_info);
-    ctx.setHint(BL_CONTEXT_HINT_RENDERING_QUALITY, BL_RENDERING_QUALITY_ANTIALIAS);
-    ctx.setCompOp(BL_COMP_OP_PLUS);
+  window.create(sf::VideoMode(width, height), "SFML / Blend2D works!");
+  window.setVerticalSyncEnabled(true);
 
-    BLFont font;
-    float y = 20.f, font_size = 24.f;
-    const char* str = "The quick brown fox jumped over your mom.";
-    const std::size_t str_len = std::strlen(str);
+  bl_context_info.threadCount = 2;
+}
 
-    while(y < screen_h)
-    {
-      font.createFromFace(font_face, font_size);
-      ctx.fillUtf8Text(BLPoint(10, y + font_size / 2.f), font, str, strlen(str), BLRgba32(0xF0F0F0FFu));
+int Application::run()
+{
+  recreate_image();
 
-      y += font_size + 4.f;
-      font_size += 12.f;
-    }
-  }
-
-  sf::Texture texture;
-  texture.loadFromImage(sf_image);
+  sf::View view = window.getDefaultView();
 
   while(window.isOpen())
   {
@@ -75,12 +71,24 @@ int main()
         window.close();
         break;
 
+      case sf::Event::Resized:
+        recreate_image();
+        view.setSize(event.size.width, event.size.height);
+        view.setCenter(event.size.width / 2.f, event.size.height / 2.f);
+        break;
+
       default:
         break;
       }
     }
 
-    window.clear();
+    if(texture_dirty)
+    {
+      recreate_texture();
+    }
+
+    window.setView(view);
+    window.clear(sf::Color::Black);
 
     sf::Sprite sprite;
     sprite.setTexture(texture);
@@ -90,4 +98,50 @@ int main()
   }
 
   return 0;
+}
+
+void Application::recreate_image()
+{
+  sf::Vector2u size = window.getSize();
+
+  image.create(size.x, size.y, sf::Color::Transparent);
+
+  BLImage bl_image;
+  bl_image.createFromData(size.x, size.y, BL_FORMAT_PRGB32, (void*)image.getPixelsPtr(), size.x * 4);
+
+  BLContext ctx(bl_image, bl_context_info);
+
+  ctx.setHint(BL_CONTEXT_HINT_RENDERING_QUALITY, BL_RENDERING_QUALITY_ANTIALIAS);
+  ctx.setCompOp(BL_COMP_OP_PLUS);
+
+  BLFont font;
+  float y = 20.f, font_size = 24.f;
+  const char* str = "The quick brown fox jumped over your mom.";
+  const std::size_t str_len = std::strlen(str);
+
+  while(y < (float)size.y)
+  {
+    font.createFromFace(font_face, font_size);
+    ctx.fillUtf8Text(BLPoint(10, y + font_size / 2.f), font, str, strlen(str), BLRgba32(0xF0F0F0FFu));
+
+    y += font_size + 4.f;
+    font_size += 12.f;
+  }
+
+  texture_dirty = true;
+}
+
+void Application::recreate_texture()
+{
+  BLImageData image_data;
+  if(!texture.loadFromImage(image))
+  {
+    return;
+  }
+  texture_dirty = false;
+}
+
+int main()
+{
+  return Application{800, 600, "OpenSans-Regular.ttf"}.run();
 }
