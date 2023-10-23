@@ -126,10 +126,14 @@ void Application::recreate_image()
   const char* str = "The quick brown fox jumped over your mom.";
   const std::size_t str_len = std::strlen(str);
 
+  BLRgba32 color{0,0,0,0xFF};
+  color.setB(0xFF);
+  ctx.setFillStyle(color);
+
   while(y < (float)size.y)
   {
     font.createFromFace(font_face, font_size);
-    ctx.fillUtf8Text(BLPoint(10, y + font_size / 2.f), font, str, strlen(str), BLRgba32(0xF0F0F0FFu));
+    ctx.fillUtf8Text(BLPoint(10, y + font_size / 2.f), font, str);
 
     y += font_size + 4.f;
     font_size += 12.f;
